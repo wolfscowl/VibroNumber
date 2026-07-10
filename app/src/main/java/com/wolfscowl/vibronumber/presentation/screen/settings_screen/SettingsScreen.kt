@@ -2,18 +2,14 @@ package com.wolfscowl.vibronumber.presentation.screen.settings_screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -25,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wolfscowl.vibronumber.presentation.app.AppViewModelProvider
 import com.wolfscowl.vibronumber.presentation.commons.UIDesign
+import com.wolfscowl.vibronumber.presentation.screen.settings_screen.components.ParameterCard
+import com.wolfscowl.vibronumber.presentation.screen.settings_screen.components.ParameterSlider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,57 +49,93 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "PTS Parameters",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.align(Alignment.Start)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
 
-            // ── START HOLD FACTOR ──────────────────────────────────────────────────────────────
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = "PTS Start Hold Factor",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = String.format("%.1f", uiState.ptsStartHoldFactor),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+            // ── GENERAL SECTION ──────────────────────────────────────────────────────────────────
+            ParameterCard(title = "General Parameters") {
+                ParameterSlider(
+                    label = "Post Digit Delay (ms)",
+                    value = uiState.postDigitDelayMs.toFloat(),
+                    onValueChange = { viewModel.updatePostDigitDelay(it.toInt()) },
+                    range = 0f..2000f,
+                    steps = 19, // 100ms steps
+                    valueFormatter = { String.format("%.0f", it) }
                 )
             }
-            Slider(
-                value = uiState.ptsStartHoldFactor,
-                onValueChange = { viewModel.updateStartHoldFactor(it) },
-                valueRange = 0.0f..2.0f,
-                steps = 19,
-                modifier = Modifier.height(32.dp)
-            )
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── END HOLD FACTOR ────────────────────────────────────────────────────────────────
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = "PTS End Hold Factor",
-                    style = MaterialTheme.typography.titleSmall
+            // ── DSCR SECTION ─────────────────────────────────────────────────────────────────────
+            ParameterCard(title = "DSCR Parameters") {
+                // DSCR START
+                ParameterSlider(
+                    label = "DSCR Start Hold Factor",
+                    value = uiState.dscrStartHoldFactor,
+                    onValueChange = { viewModel.updateDscrStartHoldFactor(it) },
+                    range = 1.0f..5.0f,
+                    steps = 20
                 )
-                Text(
-                    text = String.format("%.1f", uiState.ptsEndHoldFactor),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // DSCR END
+                ParameterSlider(
+                    label = "DSCR End Hold Factor",
+                    value = uiState.dscrEndHoldFactor,
+                    onValueChange = { viewModel.updateDscrEndHoldFactor(it) },
+                    range = 1.0f..5.0f,
+                    steps = 20
                 )
             }
-            Slider(
-                value = uiState.ptsEndHoldFactor,
-                onValueChange = { viewModel.updateEndHoldFactor(it) },
-                valueRange = 0.0f..2.0f,
-                steps = 19,
-                modifier = Modifier.height(32.dp)
-            )
+
+            // ── ATM SECTION ──────────────────────────────────────────────────────────────────────
+            ParameterCard(title = "ATM Parameters") {
+                // ATM START
+                ParameterSlider(
+                    label = "ATM Start Hold Factor",
+                    value = uiState.atmStartHoldFactor,
+                    onValueChange = { viewModel.updateAtmStartHoldFactor(it) },
+                    range = 1.0f..5.0f,
+                    steps = 20
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ATM END
+                ParameterSlider(
+                    label = "ATM End Hold Factor",
+                    value = uiState.atmEndHoldFactor,
+                    onValueChange = { viewModel.updateAtmEndHoldFactor(it) },
+                    range = 1.0f..5.0f,
+                    steps = 20
+                )
+            }
+
+            // ── PTS SECTION ──────────────────────────────────────────────────────────────────────
+            ParameterCard(title = "PTS Parameters") {
+                // PTS START
+                ParameterSlider(
+                    label = "PTS Start Hold Factor",
+                    value = uiState.ptsStartHoldFactor,
+                    onValueChange = { viewModel.updateStartHoldFactor(it) },
+                    range = 0.0f..4.0f,
+                    steps = 19
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // PTS END
+                ParameterSlider(
+                    label = "PTS End Hold Factor",
+                    value = uiState.ptsEndHoldFactor,
+                    onValueChange = { viewModel.updateEndHoldFactor(it) },
+                    range = 0.0f..4.0f,
+                    steps = 19
+                )
+            }
         }
     }
 }
+
+
+

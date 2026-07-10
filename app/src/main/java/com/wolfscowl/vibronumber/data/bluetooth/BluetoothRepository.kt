@@ -1,6 +1,5 @@
 package com.wolfscowl.vibronumber.data.bluetooth
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -8,10 +7,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.IntentFilter
-import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.UUID
+
 
 @SuppressLint("MissingPermission")
 class BluetoothRepository(private val context: Context) {
@@ -88,38 +85,28 @@ class BluetoothRepository(private val context: Context) {
     fun isBluetoothAvailable(): Boolean = bluetoothAdapter != null
 
     /**
-     * Safely checks if Bluetooth is enabled.
-     * Requires BLUETOOTH_CONNECT permission on Android 12+.
+     * Checks only if the hardware is enabled.
+     * Note: This may still throw SecurityException on Android 12+ if permissions are missing.
      */
     fun isBluetoothEnabled(): Boolean {
         if (bluetoothAdapter == null) return false
-
-        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-
-        return if (hasPermission) {
-            // try catch not absolutely necessary
-            try {
-                bluetoothAdapter.isEnabled
-            } catch (e: SecurityException) {
-                Log.e("BluetoothRepo", "SecurityException during isEnabled check", e)
-                false
-            }
-        } else {
+        
+        return try {
+            bluetoothAdapter.isEnabled
+        } catch (e: SecurityException) {
+            Log.e("BluetoothRepo", "SecurityException during isEnabled check. Permission missing?", e)
             false
         }
     }
 
 
     /**
-     * Safely updates the list of paired devices.
-     * Permission check is already handled by isBluetoothEnabled().
+     * Updates the list of paired devices. 
+     * Expects permissions to be granted.
      */
     fun updatePairedDevices() {
         if (!isBluetoothEnabled()) return
+        
         try {
             val bondedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
             _state.update { it.copy(pairedDevices = bondedDevices) }
@@ -131,8 +118,10 @@ class BluetoothRepository(private val context: Context) {
 
     fun startDiscovery() {
         if (!isBluetoothEnabled()) return
+        
         _state.update { it.copy(isScanning = true, scannedDevices = emptySet(), noDevicesFound = false) }
-        updatePairedDevices() // Refresh paired devices list as well
+        updatePairedDevices() 
+        
         val filter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_FOUND)
             addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
@@ -164,6 +153,8 @@ class BluetoothRepository(private val context: Context) {
             } catch (e: IOException) {
                 Log.e("BluetoothRepo", "Connection failed", e)
                 closeConnection()
+            } catch (e: SecurityException) {
+                Log.e("BluetoothRepo", "SecurityException during connect", e)
             }
         }
     }

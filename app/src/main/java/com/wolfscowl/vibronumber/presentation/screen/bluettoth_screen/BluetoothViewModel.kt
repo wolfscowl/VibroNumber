@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wolfscowl.vibronumber.data.bluetooth.BluetoothRepository
 import com.wolfscowl.vibronumber.data.bluetooth.toBTDeviceInfo
-import com.wolfscowl.vibronumber.presentation.model.BTDeviceInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -32,7 +31,6 @@ class BluetoothViewModel(
         bluetoothRepository.state
             .onEach { hardwareState ->
                 // Update the private device mapping for establishing a connection
-                // Combine both paired and scanned devices for the map
                 deviceMap = (hardwareState.pairedDevices + hardwareState.scannedDevices)
                     .associateBy { it.address }
 
@@ -49,16 +47,17 @@ class BluetoothViewModel(
             }.launchIn(viewModelScope)
     }
 
-
     fun startScan() {
         bluetoothRepository.startDiscovery()
     }
-
 
     fun stopScan() {
         bluetoothRepository.stopDiscovery()
     }
 
+    fun updatePairedDevices() {
+        bluetoothRepository.updatePairedDevices()
+    }
 
     fun connectToDevice(address: String) {
         val device = deviceMap[address] ?: return
@@ -69,5 +68,13 @@ class BluetoothViewModel(
 
     fun disconnect() {
         bluetoothRepository.closeConnection()
+    }
+
+    // Permission state is handled by the UI layer
+    fun setPermissionGranted(isGranted: Boolean) {
+        _uiState.update { it.copy(hasPermission = isGranted) }
+        if (isGranted) {
+            updatePairedDevices()
+        }
     }
 }

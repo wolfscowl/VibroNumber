@@ -27,7 +27,12 @@ class SettingsViewModel(
             _uiState.update {
                 it.copy(
                     ptsStartHoldFactor = prefs.ptsStartHoldFactor,
-                    ptsEndHoldFactor = prefs.ptsEndHoldFactor
+                    ptsEndHoldFactor = prefs.ptsEndHoldFactor,
+                    atmStartHoldFactor = prefs.atmStartHoldFactor,
+                    atmEndHoldFactor = prefs.atmEndHoldFactor,
+                    dscrStartHoldFactor = prefs.dscrStartHoldFactor,
+                    dscrEndHoldFactor = prefs.dscrEndHoldFactor,
+                    postDigitDelayMs = prefs.postDigitDelayMs
                 )
             }
         }.launchIn(viewModelScope)
@@ -42,6 +47,36 @@ class SettingsViewModel(
     fun updateEndHoldFactor(factor: Float) {
         viewModelScope.launch {
             dataStoreRepository.savePtsEndHoldFactor(factor)
+        }
+    }
+
+    fun updateAtmStartHoldFactor(factor: Float) {
+        viewModelScope.launch {
+            dataStoreRepository.saveAtmStartHoldFactor(factor)
+        }
+    }
+
+    fun updateAtmEndHoldFactor(factor: Float) {
+        viewModelScope.launch {
+            dataStoreRepository.saveAtmEndHoldFactor(factor)
+        }
+    }
+
+    fun updateDscrStartHoldFactor(factor: Float) {
+        viewModelScope.launch {
+            dataStoreRepository.saveDscrStartHoldFactor(factor)
+        }
+    }
+
+    fun updateDscrEndHoldFactor(factor: Float) {
+        viewModelScope.launch {
+            dataStoreRepository.saveDscrEndHoldFactor(factor)
+        }
+    }
+
+    fun updatePostDigitDelay(delayMs: Int) {
+        viewModelScope.launch {
+            dataStoreRepository.savePostDigitDelayMs(delayMs)
         }
     }
 }

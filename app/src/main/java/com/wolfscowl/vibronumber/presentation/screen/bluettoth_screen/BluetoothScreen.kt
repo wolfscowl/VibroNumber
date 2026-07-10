@@ -1,9 +1,7 @@
 package com.wolfscowl.vibronumber.presentation.screen.bluettoth_screen
 
 import android.Manifest
-import android.R.attr.fontWeight
-import android.R.attr.text
-import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -29,17 +28,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.Surface
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wolfscowl.vibronumber.presentation.app.AppViewModelProvider
@@ -51,16 +53,27 @@ fun BluetoothScreen(
     viewModel: BluetoothViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // ── INITIAL PERMISSION CHECK ──────────────────────────────────────────────────────────────
+    LaunchedEffect(Unit) {
+        val result = getRequiredBluetoothPermissions().all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
+        viewModel.setPermissionGranted(result)
+    }
 
     // ── PERMISSION LAUNCHER ──────────────────────────────────────────────────────────────────────
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // If all permissions have been granted, start the scan
-        if (permissions.values.all { it }) {
-            viewModel.startScan()
-        }
+        val allGranted = permissions.values.all { it }
+        viewModel.setPermissionGranted(allGranted)
+//        if (allGranted) {
+//            viewModel.startScan()
+//        }
     }
+
 
     // ── SCAFFOLD ─────────────────────────────────────────────────────────────────────────────────
     Scaffold(
@@ -80,10 +93,10 @@ fun BluetoothScreen(
                             if (uiState.isScanning) {
                                 viewModel.stopScan()
                             } else {
-                                permissionLauncher.launch(getRequiredBluetoothPermissions())
+                                viewModel.startScan()
                             }
                         },
-                        enabled = uiState.isBluetoothEnabled && uiState.isBluetoothAvailable
+                        enabled = uiState.isBluetoothEnabled && uiState.isBluetoothAvailable && uiState.hasPermission
                     ) {
                         if (uiState.isScanning) {
                             CircularProgressIndicator(
@@ -113,15 +126,32 @@ fun BluetoothScreen(
             // ── HINT MESSAGES ────────────────────────────────────────────────────────────────────
             if (!uiState.isBluetoothAvailable) {
                 Text(
-                    text = "Bluetooth is not supported on this device",
-                    color = MaterialTheme.colorScheme.error,
+                    text = "Bluetooth is not supported on this device!",
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                 )
+            } else if (!uiState.hasPermission) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Bluetooth permissions are required!",
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { permissionLauncher.launch(getRequiredBluetoothPermissions()) }
+                    ) {
+                        Text("Grant Permissions")
+                    }
+                }
             } else if (!uiState.isBluetoothEnabled) {
                 Text(
-                    text = "Please enable Bluetooth to scan for devices",
-                    color = MaterialTheme.colorScheme.secondary,
+                    text = "Please enable Bluetooth to scan for devices!",
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                 )
@@ -129,59 +159,59 @@ fun BluetoothScreen(
 
             // ── BLUETOOTH DEVICES LIST ───────────────────────────────────────────────────────────────
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-            
-            // ── 1. Active Connection Section ────────────────────────────────────────────────────────
-            if (uiState.isConnected && uiState.connectedDevice != null) {
-                item {
-                    Text(
-                        text = "Active Connection",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        ListItem(
-                            headlineContent = { 
-                                Text(
-                                    uiState.connectedDevice!!.name,
-                                    fontWeight = FontWeight.Bold 
-                                ) 
-                            },
-                            supportingContent = { Text(uiState.connectedDevice!!.address) },
-                            leadingContent = {
-                                Icon(
-                                    imageVector = Icons.Default.BluetoothConnected,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            trailingContent = {
-                                Text(
-                                    modifier = Modifier.clickable { viewModel.disconnect() },
-                                    text = "disconnect",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            },
-                            colors = androidx.compose.material3.ListItemDefaults.colors(
-                                containerColor = Color.Transparent
-                            )
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                }
-            }
 
-            // ── 2. Scanned Devices Section ──────────────────────────────────────────────────────
-            if (uiState.isScanning || uiState.scannedDevices.isNotEmpty() || uiState.noDevicesFound) {
+                // ── 1. Active Connection Section ────────────────────────────────────────────────────────
+                if (uiState.isConnected && uiState.connectedDevice != null) {
+                    item {
+                        Text(
+                            text = "Active Connection",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                        Surface(
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        uiState.connectedDevice!!.name,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                supportingContent = { Text(uiState.connectedDevice!!.address) },
+                                leadingContent = {
+                                    Icon(
+                                        imageVector = Icons.Default.BluetoothConnected,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                trailingContent = {
+                                    Text(
+                                        modifier = Modifier.clickable { viewModel.disconnect() },
+                                        text = "disconnect",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = androidx.compose.material3.ListItemDefaults.colors(
+                                    containerColor = Color.Transparent
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+
+                // ── 2. Scanned Devices Section ──────────────────────────────────────────────────────
+                if (uiState.isScanning || uiState.scannedDevices.isNotEmpty() || uiState.noDevicesFound) {
                     item {
                         Text(
                             text = "Available Devices",
@@ -194,7 +224,8 @@ fun BluetoothScreen(
                 }
                 if (uiState.scannedDevices.isNotEmpty()) {
                     items(uiState.scannedDevices) { deviceInfo ->
-                        val isConnected = uiState.isConnected && uiState.connectedDevice?.address == deviceInfo.address
+                        val isConnected =
+                            uiState.isConnected && uiState.connectedDevice?.address == deviceInfo.address
                         ListItem(
                             headlineContent = { Text(deviceInfo.name) },
                             supportingContent = { Text(deviceInfo.address) },
@@ -238,7 +269,8 @@ fun BluetoothScreen(
                         )
                     }
                     items(uiState.pairedDevices) { deviceInfo ->
-                        val isConnected = uiState.isConnected && uiState.connectedDevice?.address == deviceInfo.address
+                        val isConnected =
+                            uiState.isConnected && uiState.connectedDevice?.address == deviceInfo.address
                         ListItem(
                             headlineContent = { Text(deviceInfo.name) },
                             supportingContent = { Text(deviceInfo.address) },
@@ -259,10 +291,7 @@ fun BluetoothScreen(
     }
 }
 
-/**
- * Helper function for determining the required Bluetooth permissions
- * based on the Android version.
- */
+
 private fun getRequiredBluetoothPermissions(): Array<String> {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)

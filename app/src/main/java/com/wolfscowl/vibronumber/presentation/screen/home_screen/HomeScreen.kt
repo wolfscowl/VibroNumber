@@ -32,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -49,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wolfscowl.vibronumber.presentation.app.AppViewModelProvider
 import com.wolfscowl.vibronumber.presentation.commons.UIDesign
 import com.wolfscowl.vibronumber.presentation.model.VibroMode
+import com.wolfscowl.vibronumber.presentation.screen.home_screen.components.VibrationGrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +111,12 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxHeight()
                         .aspectRatio(1f),
-                    intensities = uiState.actorIntensities
+                    intensities = uiState.actorIntensities,
+                    onActorClick =
+                        if (uiState.config.mode == VibroMode.TEST && uiState.isConnected)
+                            viewModel::onActorClick
+                        else
+                            null
                 )
             }
 
@@ -128,13 +135,14 @@ fun HomeScreen(
                     modifier = Modifier.align(Alignment.Start)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 // Row 1: Digits 0-4
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     (0..4).forEach { digit ->
                         val isSelected = uiState.config.digit == digit
                         Button(
                             onClick = { viewModel.updateDigit(digit) },
+                            enabled = uiState.config.mode != VibroMode.TEST,
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(0.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -155,6 +163,7 @@ fun HomeScreen(
                         val isSelected = uiState.config.digit == digit
                         Button(
                             onClick = { viewModel.updateDigit(digit) },
+                            enabled = uiState.config.mode != VibroMode.TEST,
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(0.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -196,7 +205,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // ── DURATION SLIDER ─────────────────────────────────────────────────────────────
-                val durationLabel = if (uiState.config.mode == VibroMode.ATM) "Motor Duration" else "Transition Time"
+                val durationLabel = if (uiState.config.mode == VibroMode.PTS) "Transition Time" else "Motor Duration"
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(durationLabel, style = MaterialTheme.typography.titleSmall)
                     Text(
@@ -208,7 +217,7 @@ fun HomeScreen(
                 Slider(
                     value = uiState.config.durationMs.toFloat(),
                     onValueChange = { viewModel.updateDuration(it.toInt()) },
-                    valueRange = 50f..1000f,
+                    valueRange = 50f..2000f,
                     modifier = Modifier.height(32.dp)
                 )
 
@@ -237,6 +246,7 @@ fun HomeScreen(
                     // Simulation Button
                     OutlinedButton(
                         onClick = { viewModel.simulate() },
+                        enabled = uiState.config.mode != VibroMode.TEST,
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = MaterialTheme.shapes.medium
                     ) {
@@ -248,7 +258,7 @@ fun HomeScreen(
                     // Send Button
                     Button(
                         onClick = { viewModel.sendConfig() },
-                        enabled = uiState.isConnected,
+                        enabled = uiState.isConnected && uiState.config.mode != VibroMode.TEST,
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = MaterialTheme.shapes.medium
                     ) {
@@ -259,58 +269,6 @@ fun HomeScreen(
                 }
 
                 Spacer(modifier = Modifier.height(15.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun VibrationGrid(
-    intensities: List<Int>,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            repeat(3) { row ->
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(3) { col ->
-                        val index = row * 3 + col
-                        val intensity = intensities.getOrElse(index) { 0 }
-
-                        // Calculate color: From gray (0%) to dark blue (100%)
-                        val activeColor = MaterialTheme.colorScheme.primary
-                        val inactiveColor = MaterialTheme.colorScheme.surfaceVariant
-                        val color = lerp(inactiveColor, activeColor, intensity / 100f)
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                                .padding(8.dp)
-                                .clip(CircleShape)
-                                .background(color),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = index.toString(),
-                                style = MaterialTheme.typography.labelMedium,
-                                // ToDo Revise the color adjustment
-                                color = if (intensity > 50) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
             }
         }
     }
